@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web TV Premium</title>
+    <link rel="stylesheet" href="css/style.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <!-- HLS.js for m3u8 streaming -->
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar for channels -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <img src="img/logo.jpg" alt="TV Anto Logo" class="main-logo">
+            </div>
+            <div class="search-box">
+                <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                <input type="text" id="search-input" placeholder="Buscar canal..." autocomplete="off">
+                <button id="search-clear" class="search-clear hidden"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="categories-container" id="categories-container">
+                <!-- Categories will be injected here via JS -->
+            </div>
+        </aside>
+
+        <!-- Main content area -->
+        <main class="main-content">
+            <header class="top-header">
+                <button id="mobile-menu-btn" class="mobile-menu-btn"><i class="fa-solid fa-bars"></i></button>
+                <div class="current-channel-info">
+                    <img id="current-logo" class="channel-logo-header hidden" src="" alt="">
+                    <h1 id="current-title">Selecciona un canal</h1>
+                    <span id="current-group" class="badge hidden"></span>
+                </div>
+            </header>
+            
+            <div class="player-wrapper">
+                <div class="video-container" id="video-container">
+                    <video id="video-player" controls crossorigin playsinline></video>
+                    <iframe id="iframe-player" class="hidden" allowfullscreen allow="autoplay; encrypted-media"></iframe>
+                    <div id="loading-spinner" class="loading-spinner hidden">
+                        <div class="spinner"></div>
+                    </div>
+                    <div id="error-message" class="error-message hidden">
+                        <i class="fa-solid fa-circle-exclamation"></i>
+                        <p>No se pudo cargar el stream. Puede estar fuera de línea.</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Data and Application Logic -->
+    <script src="js/data.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
