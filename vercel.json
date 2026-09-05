@@ -1,0 +1,11 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/$1"
+    }
+  ],
+  "buildCommand": "flutter build web --release --web-renderer canvaskit",
+  "outputDirectory": "build/web",
+  "framework": null
+}

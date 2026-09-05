@@ -1,0 +1,17 @@
+{
+  "mensaje": {
+    "id": "bienvenida-1",
+    "titulo": "🎉 ¡Bienvenido a TV Anto!",
+    "cuerpo": "Gracias por usar la app. Aquí verás avisos y novedades de los canales.",
+    "url": ""
+  },
+  "android": {
+    "version": "1.0.0",
+    "url": "https://github.com/creaciones742-spec/tv-anto/releases/latest/download/app-release.apk",
+    "forzar": false
+  },
+  "ios": {
+    "version": "1.0.0",
+    "url": "https://github.com/creaciones742-spec/tv-anto/releases/latest"
+  }
+}
