@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -146,6 +148,7 @@ class _MainScreenState extends State<MainScreen> {
   bool _zoomMode = false;
   bool _showTVFrame = true;
   double _videoZoom = 1.0;
+  Timer? _liveMessageTimer;
 
   @override
   void initState() {
@@ -155,6 +158,11 @@ class _MainScreenState extends State<MainScreen> {
     _extractAndPlay(_currentChannel!.url);
     WakelockPlus.enable(); // Mantener pantalla encendida
     WidgetsBinding.instance.addPostFrameCallback((_) => _checkRemoteConfig());
+    // Revisa mensajes nuevos mientras la app está abierta (en vivo).
+    _liveMessageTimer = Timer.periodic(
+      const Duration(seconds: 45),
+      (_) => _checkLiveMessage(),
+    );
   }
 
   Future<void> _loadPreferences() async {
@@ -259,8 +267,66 @@ class _MainScreenState extends State<MainScreen> {
     }
   }
 
+  /// Revisa periódicamente si hay un mensaje nuevo y lo muestra como banner
+  /// sin interrumpir la reproducción.
+  Future<void> _checkLiveMessage() async {
+    final config = await UpdateService.fetchConfig();
+    if (config == null || !mounted || !config.hasMessage) return;
+    if (config.messageId == null) return; // sin id, no se muestra en vivo
+
+    final prefs = await SharedPreferences.getInstance();
+    final seenId = prefs.getString('seenMessageId');
+    if (config.messageId == seenId) return;
+
+    await prefs.setString('seenMessageId', config.messageId!);
+    if (!mounted) return;
+    _showLiveBanner(config);
+  }
+
+  void _showLiveBanner(RemoteConfig config) {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      SnackBar(
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 7),
+        backgroundColor: const Color(0xFF16161f),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: const BorderSide(color: Color(0xFFEC4899), width: 1),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              config.messageTitle ?? 'TV ANTO',
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Color(0xFFEC4899),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              config.messageBody ?? '',
+              style: const TextStyle(color: Colors.white),
+            ),
+          ],
+        ),
+        action: (config.messageUrl != null && config.messageUrl!.isNotEmpty)
+            ? SnackBarAction(
+                label: 'Ver',
+                textColor: const Color(0xFFFBBF24),
+                onPressed: () => _openUrl(config.messageUrl!),
+              )
+            : null,
+      ),
+    );
+  }
+
   @override
   void dispose() {
+    _liveMessageTimer?.cancel();
     _videoPlayerController?.dispose();
     _chewieController?.dispose();
     WakelockPlus.disable();

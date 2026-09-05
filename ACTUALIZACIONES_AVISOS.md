@@ -1,11 +1,13 @@
 # 🔄 Actualizaciones OTA y Avisos a Usuarios - TV Anto
 
-TV Anto ahora revisa, **cada vez que se abre**, un archivo de control llamado
-`version.json` que está en este repositorio de GitHub. Con ese único archivo
-puedes:
+TV Anto revisa un archivo de control llamado `version.json` que está en este
+repositorio de GitHub. Con ese único archivo puedes:
 
 1. **Avisar de una nueva actualización** (Android descarga el APK; iOS abre el enlace).
-2. **Enviar un mensaje/aviso** a todos los usuarios.
+2. **Enviar un mensaje/aviso** a todos los usuarios:
+   - **Al abrir la app**: aparece como ventana (una vez por `id`).
+   - **En vivo (mientras ven un programa)**: la app revisa cada ~45 segundos y
+     muestra el mensaje como banner, sin interrumpir la reproducción.
 
 Todo sin Play Store ni App Store. El archivo se sirve gratis desde:
 
