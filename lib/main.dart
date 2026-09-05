@@ -10,10 +10,15 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'onesignal_service.dart';
 import 'update_service.dart';
+
+/// App ID de OneSignal (notificaciones push).
+const String kOneSignalAppId = '0d6bfe44-46d5-4498-8953-b1bfe508cb47';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+  OneSignalService.instance.initialize(kOneSignalAppId);
   runApp(const TvAntoApp());
 }
 
@@ -149,6 +154,7 @@ class _MainScreenState extends State<MainScreen> {
   bool _showTVFrame = true;
   double _videoZoom = 1.0;
   Timer? _liveMessageTimer;
+  bool _oneSignalDialogShown = false;
 
   @override
   void initState() {
@@ -163,6 +169,7 @@ class _MainScreenState extends State<MainScreen> {
       const Duration(seconds: 45),
       (_) => _checkLiveMessage(),
     );
+    _setupOneSignalObserver();
   }
 
   Future<void> _loadPreferences() async {
@@ -177,6 +184,45 @@ class _MainScreenState extends State<MainScreen> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt('viewMode', _viewMode.index);
     await prefs.setBool('showTVFrame', _showTVFrame);
+  }
+
+  /// Registra un observador de suscripción de OneSignal y muestra el diálogo
+  /// de verificación cuando el dispositivo queda registrado.
+  void _setupOneSignalObserver() {
+    final service = OneSignalService.instance;
+    service.addSubscriptionObserver((id) {
+      _maybeShowOneSignalDialog(id);
+    });
+    // El id puede haberse asignado antes de registrar el observador.
+    _maybeShowOneSignalDialog(service.subscriptionId);
+  }
+
+  void _maybeShowOneSignalDialog(String? subscriptionId) {
+    if (_oneSignalDialogShown ||
+        !OneSignalService.instance.isRegistered(subscriptionId)) {
+      return;
+    }
+    _oneSignalDialogShown = true;
+    if (!mounted) return;
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text('Your OneSignal SDK integration is complete!'),
+        content: const Text(
+          'You can now send Push Notifications & In-App Messages through OneSignal. Tap below to enable push notifications.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              OneSignalService.instance.requestPermission();
+            },
+            child: const Text('Got it'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _checkRemoteConfig() async {
