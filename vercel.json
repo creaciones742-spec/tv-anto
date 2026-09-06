@@ -5,7 +5,7 @@
       "destination": "/api/$1"
     }
   ],
-  "buildCommand": "flutter build web --release --web-renderer canvaskit",
+  "buildCommand": "bash vercel.sh",
   "outputDirectory": "build/web",
   "framework": null
 }
