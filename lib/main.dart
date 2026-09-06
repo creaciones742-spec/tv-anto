@@ -139,6 +139,85 @@ class _MainScreenState extends State<MainScreen> {
       logo: 'https://upload.wikimedia.org/wikipedia/pt/thumb/7/7f/Premiere_FC_2018.png/512px-Premiere_FC_2018.png',
       group: 'DEPORTES',
     ),
+    // CANALES TVF90
+    Channel(
+      name: '⭐ DSports +',
+      url: 'https://tvf90.com/5.php?stream=dsportsplus',
+      logo: 'https://i.imgur.com/LmkNt3v.png',
+      group: 'DEPORTES',
+    ),
+    Channel(
+      name: '⭐ ESPN HD',
+      url: 'https://tvf90.com/5.php?stream=espn',
+      logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/ESPN_wordmark.svg/1024px-ESPN_wordmark.svg.png',
+      group: 'DEPORTES',
+    ),
+    Channel(
+      name: '⭐ Liga 1 Max',
+      url: 'https://tvf90.com/5.php?stream=liga1max',
+      logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8a/Liga1_Max_logo.png/512px-Liga1_Max_logo.png',
+      group: 'DEPORTES',
+    ),
+    Channel(
+      name: '⭐ Telemundo',
+      url: 'https://tvf90.com/5.php?stream=telemundo',
+      logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1d/Telemundo_logo.svg/512px-Telemundo_logo.svg.png',
+      group: 'DEPORTES',
+    ),
+    Channel(
+      name: '⭐ Liga Pro ECU',
+      url: 'https://tvf90.com/5.php?stream=ecdf_ligapro',
+      logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/85/LigaPro_Logo.png/512px-LigaPro_Logo.png',
+      group: 'DEPORTES',
+    ),
+    Channel(
+      name: '⭐ Win Sports 2',
+      url: 'https://tvf90.com/5.php?stream=winsports2',
+      logo: 'https://i.imgur.com/XSL1gd7.png',
+      group: 'DEPORTES',
+    ),
+    Channel(
+      name: '⭐ SporTV',
+      url: 'https://tvf90.com/5.php?stream=sportv',
+      logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b3/SporTV_logo.svg/512px-SporTV_logo.svg.png',
+      group: 'DEPORTES',
+    ),
+    Channel(
+      name: '⭐ TNT Sports Chile',
+      url: 'https://tvf90.com/5.php?stream=tntsportschile',
+      logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/56/TNT_Sports_Chile_logo.svg/512px-TNT_Sports_Chile_logo.svg.png',
+      group: 'DEPORTES',
+    ),
+    Channel(
+      name: '⭐ ESPN 3',
+      url: 'https://tvf90.com/5.php?stream=espn3',
+      logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/51/ESPN3_Logo.png/512px-ESPN3_Logo.png',
+      group: 'DEPORTES',
+    ),
+    Channel(
+      name: '⭐ Canal 5',
+      url: 'https://tvf90.com/5.php?stream=canal5',
+      logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a7/Canal_5_(Mexico)_logo.svg/512px-Canal_5_(Mexico)_logo.svg.png',
+      group: 'DEPORTES',
+    ),
+    Channel(
+      name: '⭐ TUDN',
+      url: 'https://tvf90.com/5.php?stream=tudn',
+      logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/28/TUDN_logo.svg/512px-TUDN_logo.svg.png',
+      group: 'DEPORTES',
+    ),
+    Channel(
+      name: '⭐ Universo',
+      url: 'https://tvf90.com/5.php?stream=universo',
+      logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/98/Universo_logo.svg/512px-Universo_logo.svg.png',
+      group: 'DEPORTES',
+    ),
+    Channel(
+      name: '⭐ Win Sports',
+      url: 'https://tvf90.com/5.php?stream=winsports',
+      logo: 'https://i.imgur.com/XSL1gd7.png',
+      group: 'DEPORTES',
+    ),
   ];
 
   Channel? _currentChannel;
