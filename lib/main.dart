@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
-import 'package:media_kit/media_kit.dart';
-import 'package:media_kit_video/media_kit_video.dart';
+import 'package:video_player/video_player.dart';
+import 'package:chewie/chewie.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -18,7 +18,6 @@ const String kOneSignalAppId = '0d6bfe44-46d5-4498-8953-b1bfe508cb47';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  MediaKit.ensureInitialized();
   OneSignalService.instance.initialize(kOneSignalAppId);
   runApp(const TvAntoApp());
 }
@@ -225,8 +224,8 @@ class _MainScreenState extends State<MainScreen> {
   bool _isLoading = true;
   String _errorMessage = '';
 
-  Player? _player;
-  VideoController? _videoController;
+  VideoPlayerController? _videoPlayerController;
+  ChewieController? _chewieController;
 
   ViewMode _viewMode = ViewMode.mobile;
   bool _showSettings = false;
@@ -453,7 +452,8 @@ class _MainScreenState extends State<MainScreen> {
   @override
   void dispose() {
     _liveMessageTimer?.cancel();
-    _player?.dispose();
+    _videoPlayerController?.dispose();
+    _chewieController?.dispose();
     WakelockPlus.disable();
     super.dispose();
   }
@@ -463,6 +463,11 @@ class _MainScreenState extends State<MainScreen> {
       _isLoading = true;
       _errorMessage = '';
     });
+
+    _videoPlayerController?.dispose();
+    _chewieController?.dispose();
+    _videoPlayerController = null;
+    _chewieController = null;
 
     try {
       String finalUrl = pageUrl;
@@ -501,8 +506,23 @@ class _MainScreenState extends State<MainScreen> {
       String m3u8Url = match.group(1)!;
       m3u8Url = m3u8Url.replaceAll(r'\/', '/');
 
-      _initPlayer();
-      await _player!.open(Media(m3u8Url));
+      _videoPlayerController = VideoPlayerController.networkUrl(Uri.parse(m3u8Url));
+      await _videoPlayerController!.initialize();
+
+      _chewieController = ChewieController(
+        videoPlayerController: _videoPlayerController!,
+        autoPlay: true,
+        looping: false,
+        isLive: true,
+        showControlsOnInitialize: false,
+        allowFullScreen: true,
+        allowMuting: true,
+        errorBuilder: (context, errorMessage) {
+          return Center(
+            child: Text(errorMessage, style: const TextStyle(color: Colors.white)),
+          );
+        },
+      );
 
       setState(() {
         _isLoading = false;
@@ -513,21 +533,6 @@ class _MainScreenState extends State<MainScreen> {
         _errorMessage = e.toString().replaceAll('Exception: ', '');
       });
     }
-  }
-
-  /// Crea el reproductor (media_kit) una sola vez y escucha errores de reproducción.
-  void _initPlayer() {
-    if (_player != null) return;
-    _player = Player();
-    _videoController = VideoController(_player!);
-    _player!.stream.error.listen((error) {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-          _errorMessage = error;
-        });
-      }
-    });
   }
 
   void _changeChannel(Channel channel) {
@@ -659,14 +664,10 @@ class _MainScreenState extends State<MainScreen> {
       videoWidget = _buildLoadingState();
     } else if (_errorMessage.isNotEmpty) {
       videoWidget = _buildErrorState();
-    } else if (_videoController != null) {
+    } else if (_chewieController != null) {
       videoWidget = Transform.scale(
         scale: _videoZoom,
-        child: Video(
-          controller: _videoController!,
-          fit: BoxFit.contain,
-          controls: NoVideoControls,
-        ),
+        child: Chewie(controller: _chewieController!),
       );
     } else {
       videoWidget = const SizedBox();
@@ -709,7 +710,7 @@ class _MainScreenState extends State<MainScreen> {
           Center(child: videoWidget),
 
           // Watermark
-          if (!_isLoading && _errorMessage.isEmpty && _videoController != null)
+          if (!_isLoading && _errorMessage.isEmpty && _chewieController != null)
             Positioned(
               bottom: 80,
               right: 20,
