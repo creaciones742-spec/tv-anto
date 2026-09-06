@@ -239,6 +239,26 @@ class _MainScreenState extends State<MainScreen> {
   double _videoZoom = 1.0;
   Timer? _liveMessageTimer;
   bool _oneSignalDialogShown = false;
+  String _selectedTab = 'Todos';
+  String _searchQuery = '';
+
+  List<String> get _channelGroups {
+    final groups = channels.map((c) => c.group).toSet().toList();
+    return ['Todos', ...groups];
+  }
+
+  List<Channel> get _filteredChannels {
+    var list = channels;
+    if (_selectedTab != 'Todos') {
+      list = list.where((c) => c.group == _selectedTab).toList();
+    }
+    if (_searchQuery.isNotEmpty) {
+      list = list
+          .where((c) => c.name.toLowerCase().contains(_searchQuery.toLowerCase()))
+          .toList();
+    }
+    return list;
+  }
 
   @override
   void initState() {
@@ -575,11 +595,400 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_viewMode == ViewMode.tvBox) {
-      return _buildTVBoxMode();
-    } else {
-      return _buildMobileMode();
+    final isDesktop = MediaQuery.of(context).size.width >= 900;
+    return Scaffold(
+      body: SafeArea(
+        child: Column(
+          children: [
+            _buildTopBar(isDesktop),
+            Expanded(
+              child: isDesktop
+                  ? Row(
+                      children: [
+                        SizedBox(width: 320, child: _buildChannelPanel()),
+                        Expanded(
+                          child: Column(
+                            children: [
+                              Expanded(child: _buildVideoArea()),
+                              _buildProgramInfo(),
+                            ],
+                          ),
+                        ),
+                      ],
+                    )
+                  : Column(
+                      children: [
+                        Expanded(child: _buildVideoArea()),
+                        _buildMobileChannelBar(),
+                        _buildProgramInfo(),
+                      ],
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ====== INTERFAZ MODERNA (TV Box / Web) ======
+
+  Widget _buildTopBar(bool isDesktop) {
+    return Container(
+      height: 64,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(colors: [Color(0xFF16161f), Color(0xFF0a0a0f)]),
+        border: Border(bottom: BorderSide(color: Colors.white.withOpacity(0.05))),
+      ),
+      child: Row(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: Image.asset(
+              'assets/img/logo.jpg',
+              height: 40,
+              errorBuilder: (_, __, ___) => const Icon(Icons.live_tv, color: Color(0xFFEC4899), size: 40),
+            ),
+          ),
+          const SizedBox(width: 12),
+          const Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Anto TV', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+              Text('Señal Digital UHD 4K', style: TextStyle(fontSize: 11, color: Colors.white54)),
+            ],
+          ),
+          const Spacer(),
+          if (isDesktop) ...[
+          // Búsqueda
+          Container(
+            width: 220,
+            height: 40,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.06),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Row(
+              children: [
+                const Icon(Icons.search, size: 18, color: Colors.white54),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextField(
+                    onChanged: (v) => setState(() => _searchQuery = v),
+                    style: const TextStyle(color: Colors.white, fontSize: 13),
+                    decoration: const InputDecoration(
+                      border: InputBorder.none,
+                      hintText: 'Buscar canal...',
+                      hintStyle: TextStyle(color: Colors.white38, fontSize: 13),
+                      isDense: true,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+            const SizedBox(width: 14),
+          ],
+          _buildModeSwitcher(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildVideoArea() {
+    return Stack(
+      children: [
+        _buildVideoPlayer(),
+        if (_currentChannel != null && !_isLoading && _errorMessage.isEmpty)
+          Positioned(top: 12, left: 16, child: _buildChannelOverlay()),
+      ],
+    );
+  }
+
+  Widget _buildChannelPanel() {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(colors: [Color(0xFF0a0a0f), Color(0xFF16161f)]),
+        border: Border(right: BorderSide(color: Colors.white.withOpacity(0.05))),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+            child: Row(
+              children: [
+                const Text(
+                  'GUÍA DE CANALES',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white70, letterSpacing: 1),
+                ),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Text('● En Vivo', style: TextStyle(fontSize: 11, color: Color(0xFF10B981))),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(
+            height: 40,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              children: _channelGroups
+                  .map((g) => Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: _buildTabChip(g),
+                      ))
+                  .toList(),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Expanded(child: _buildChannelList()),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTabChip(String group) {
+    final selected = _selectedTab == group;
+    return GestureDetector(
+      onTap: () => setState(() => _selectedTab = group),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          gradient: selected ? const LinearGradient(colors: [Color(0xFFEC4899), Color(0xFFFBBF24)]) : null,
+          color: selected ? null : Colors.white.withOpacity(0.05),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Text(
+          group,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: selected ? Colors.black : Colors.white70,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildChannelList() {
+    final list = _filteredChannels;
+    if (list.isEmpty) {
+      return const Center(
+        child: Text('Sin canales', style: TextStyle(color: Colors.white54)),
+      );
     }
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+      itemCount: list.length,
+      itemBuilder: (context, index) {
+        final c = list[index];
+        final isSelected = _currentChannel?.url == c.url;
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: GestureDetector(
+            onTap: () => _changeChannel(c),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                gradient: isSelected ? const LinearGradient(colors: [Color(0xFFEC4899), Color(0xFFFBBF24)]) : null,
+                color: isSelected ? null : Colors.white.withOpacity(0.03),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: isSelected ? Colors.white : Colors.transparent, width: 1.5),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    padding: const EdgeInsets.all(5),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Image.network(
+                      c.logo,
+                      errorBuilder: (_, __, ___) => const Icon(Icons.live_tv, color: Colors.white, size: 22),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          c.name,
+                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: isSelected ? Colors.black : Colors.white),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          c.group,
+                          style: TextStyle(fontSize: 10, color: isSelected ? Colors.black54 : Colors.white54),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (isSelected) const Icon(Icons.play_circle_fill, color: Colors.black54, size: 20),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildChannelOverlay() {
+    final c = _currentChannel!;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.55),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(color: Colors.white.withOpacity(0.08), borderRadius: BorderRadius.circular(8)),
+            child: Image.network(
+              c.logo,
+              height: 28,
+              errorBuilder: (_, __, ___) => const Icon(Icons.live_tv, color: Colors.white, size: 22),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                c.name,
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.white),
+              ),
+              Row(
+                children: [
+                  Container(width: 8, height: 8, decoration: const BoxDecoration(color: Color(0xFF10B981), shape: BoxShape.circle)),
+                  const SizedBox(width: 6),
+                  const Text('EN VIVO', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.white70)),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProgramInfo() {
+    final c = _currentChannel;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFF101018),
+        border: Border(top: BorderSide(color: Colors.white.withOpacity(0.05))),
+      ),
+      child: Row(
+        children: [
+          if (c != null) ...[
+            Image.network(c.logo, height: 22, errorBuilder: (_, __, ___) => const Icon(Icons.live_tv, size: 20)),
+            const SizedBox(width: 10),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(c.name, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white), maxLines: 1, overflow: TextOverflow.ellipsis),
+                const Text('Transmisión en vivo', style: TextStyle(fontSize: 11, color: Colors.white54)),
+              ],
+            ),
+          ],
+          const Spacer(),
+          _buildActionChip(Icons.favorite, 'Favorito'),
+          const SizedBox(width: 8),
+          _buildActionChip(Icons.fiber_manual_record, 'Grabar'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionChip(IconData icon, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 15, color: Colors.white70),
+          const SizedBox(width: 6),
+          Text(label, style: const TextStyle(fontSize: 12, color: Colors.white70)),
+        ],
+      ),
+    );
+  }
+
+  /// Barra horizontal de canales para móvil (pantallas estrechas).
+  Widget _buildMobileChannelBar() {
+    final list = _filteredChannels;
+    return Container(
+      height: 96,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.black.withOpacity(0.85), Colors.black.withOpacity(0.6)],
+        ),
+      ),
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: list.length,
+        padding: const EdgeInsets.all(10),
+        itemBuilder: (context, index) {
+          final c = list[index];
+          final isSelected = _currentChannel?.url == c.url;
+          return GestureDetector(
+            onTap: () => _changeChannel(c),
+            child: Container(
+              width: 120,
+              margin: const EdgeInsets.only(right: 10),
+              decoration: BoxDecoration(
+                gradient: isSelected ? const LinearGradient(colors: [Color(0xFFEC4899), Color(0xFFFBBF24)]) : null,
+                color: isSelected ? null : Colors.white.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: isSelected ? Colors.white : Colors.transparent, width: 1.5),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Image.network(
+                    c.logo,
+                    height: 34,
+                    errorBuilder: (_, __, ___) => const Icon(Icons.live_tv, size: 30),
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    c.name,
+                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
   }
 
   Widget _buildMobileMode() {

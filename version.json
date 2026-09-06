@@ -1,12 +1,12 @@
 {
   "mensaje": {
-    "id": "tvanto-bienvenida",
+    "id": "tvanto-apoyo",
     "titulo": "📺 TV ANTO",
-    "cuerpo": "¡Bienvenido a TV ANTO! Disfruta de tus canales deportivos en vivo. Te avisaremos aquí de novedades y nuevas versiones.",
+    "cuerpo": "Recuerda apoyar para sostener esta aplicación. ¡Gracias por estar con nosotros! Tu apoyo nos ayuda a mantener los canales en vivo.",
     "url": ""
   },
   "android": {
-    "version": "1.0.8",
+    "version": "1.0.9",
     "url": "https://github.com/creaciones742-spec/tv-anto/releases/latest/download/app-release.apk",
     "forzar": false
   },
