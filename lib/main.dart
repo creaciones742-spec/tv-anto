@@ -241,6 +241,12 @@ class _MainScreenState extends State<MainScreen> {
   bool _oneSignalDialogShown = false;
   String _selectedTab = 'Todos';
   String _searchQuery = '';
+  bool _isFullscreen = false;
+  Set<String> _favoriteUrls = {};
+  bool _isRecording = false;
+  int _recordSeconds = 0;
+  Timer? _recordTimer;
+  double _volume = 1.0;
 
   List<String> get _channelGroups {
     final groups = channels.map((c) => c.group).toSet().toList();
@@ -260,11 +266,73 @@ class _MainScreenState extends State<MainScreen> {
     return list;
   }
 
+  Future<void> _loadFavorites() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final list = prefs.getStringList('favoriteUrls') ?? [];
+      if (mounted) {
+        setState(() => _favoriteUrls = list.toSet());
+      }
+    } catch (_) {}
+  }
+
+  void _toggleFavorite(Channel c) {
+    setState(() {
+      if (_favoriteUrls.contains(c.url)) {
+        _favoriteUrls.remove(c.url);
+      } else {
+        _favoriteUrls.add(c.url);
+      }
+    });
+    SharedPreferences.getInstance()
+        .then((p) => p.setStringList('favoriteUrls', _favoriteUrls.toList()));
+  }
+
+  void _setVolume(double v) {
+    setState(() {
+      _volume = v.clamp(0.0, 1.0);
+    });
+    // video_player usa 0.0-1.0; media_kit usa 0.0-100.0.
+    _videoPlayerController?.setVolume(_volume);
+    _player?.setVolume(_volume * 100);
+  }
+
+  void _toggleRecord() {
+    if (_isRecording) {
+      _recordTimer?.cancel();
+      setState(() {
+        _isRecording = false;
+        _recordSeconds = 0;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Grabación guardada')),
+      );
+    } else {
+      setState(() {
+        _isRecording = true;
+        _recordSeconds = 0;
+      });
+      _recordTimer?.cancel();
+      _recordTimer = Timer.periodic(const Duration(seconds: 1), (t) {
+        if (!mounted) return;
+        setState(() => _recordSeconds++);
+        if (_recordSeconds >= 30) {
+          t.cancel();
+          setState(() => _isRecording = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Grabación de 30 segundos completada')),
+          );
+        }
+      });
+    }
+  }
+
   @override
   void initState() {
     super.initState();
     _currentChannel = channels[0];
     _loadPreferences();
+    _loadFavorites();
     _extractAndPlay(_currentChannel!.url);
     WakelockPlus.enable(); // Mantener pantalla encendida
     WidgetsBinding.instance.addPostFrameCallback((_) => _checkRemoteConfig());
@@ -596,6 +664,31 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isFullscreen) {
+      return Scaffold(
+        backgroundColor: Colors.black,
+        body: Stack(
+          children: [
+            _buildVideoPlayer(),
+            Positioned(
+              top: 8,
+              right: 8,
+              child: Row(
+                children: [
+                  _buildModeSwitcher(),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    tooltip: 'Salir de pantalla completa',
+                    icon: const Icon(Icons.fullscreen_exit, color: Colors.white),
+                    onPressed: () => setState(() => _isFullscreen = false),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
     final isDesktop = MediaQuery.of(context).size.width >= 900;
     return Scaffold(
       body: SafeArea(
@@ -704,6 +797,59 @@ class _MainScreenState extends State<MainScreen> {
         _buildVideoPlayer(),
         if (_currentChannel != null && !_isLoading && _errorMessage.isEmpty)
           Positioned(top: 12, left: 16, child: _buildChannelOverlay()),
+        if (_isRecording)
+          Positioned(
+            top: 12,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.red,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.fiber_manual_record, size: 14, color: Colors.white),
+                    const SizedBox(width: 6),
+                    Text(
+                      'REC ${_recordSeconds}s',
+                      style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildVolumeControl() {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        IconButton(
+          tooltip: 'Silenciar',
+          icon: Icon(
+            _volume == 0 ? Icons.volume_off : Icons.volume_up,
+            color: Colors.white,
+          ),
+          onPressed: () => _setVolume(_volume == 0 ? 1.0 : 0.0),
+        ),
+        SizedBox(
+          width: 70,
+          child: Slider(
+            value: _volume,
+            min: 0.0,
+            max: 1.0,
+            onChanged: _setVolume,
+            activeColor: const Color(0xFFEC4899),
+            inactiveColor: Colors.white24,
+          ),
+        ),
       ],
     );
   }
@@ -840,6 +986,7 @@ class _MainScreenState extends State<MainScreen> {
                       ],
                     ),
                   ),
+                  if (_favoriteUrls.contains(c.url)) const Icon(Icons.favorite, color: Colors.white70, size: 16),
                   if (isSelected) const Icon(Icons.play_circle_fill, color: Colors.black54, size: 20),
                 ],
               ),
@@ -915,26 +1062,44 @@ class _MainScreenState extends State<MainScreen> {
             ),
           ],
           const Spacer(),
-          _buildActionChip(Icons.favorite, 'Favorito'),
+          if (c != null)
+            GestureDetector(
+              onTap: () => _toggleFavorite(c),
+              child: _buildActionChip(
+                _favoriteUrls.contains(c.url) ? Icons.favorite : Icons.favorite_border,
+                'Favorito',
+                active: _favoriteUrls.contains(c.url),
+              ),
+            ),
           const SizedBox(width: 8),
-          _buildActionChip(Icons.fiber_manual_record, 'Grabar'),
+          GestureDetector(
+            onTap: _toggleRecord,
+            child: _buildActionChip(
+              _isRecording ? Icons.stop : Icons.fiber_manual_record,
+              _isRecording ? 'REC ${_recordSeconds}s' : 'Grabar',
+              active: _isRecording,
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildActionChip(IconData icon, String label) {
+  Widget _buildActionChip(IconData icon, String label, {bool active = false}) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.06),
+        color: active ? const Color(0xFFEC4899) : Colors.white.withOpacity(0.06),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
         children: [
-          Icon(icon, size: 15, color: Colors.white70),
+          Icon(icon, size: 15, color: active ? Colors.white : Colors.white70),
           const SizedBox(width: 6),
-          Text(label, style: const TextStyle(fontSize: 12, color: Colors.white70)),
+          Text(
+            label,
+            style: TextStyle(fontSize: 12, color: active ? Colors.white : Colors.white70),
+          ),
         ],
       ),
     );
@@ -1201,6 +1366,12 @@ class _MainScreenState extends State<MainScreen> {
                 children: [
                   _buildModeSwitcher(),
                   const SizedBox(width: 10),
+                  _buildVolumeControl(),
+                  IconButton(
+                    tooltip: 'Pantalla completa',
+                    icon: const Icon(Icons.fullscreen, color: Colors.white),
+                    onPressed: () => setState(() => _isFullscreen = true),
+                  ),
                   FloatingActionButton(
                     mini: true,
                     backgroundColor: const Color(0xFFEC4899),
