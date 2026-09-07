@@ -533,9 +533,10 @@ class _MainScreenState extends State<MainScreen> {
       m3u8Url = m3u8Url.replaceAll(r'\/', '/');
 
       if (kIsWeb) {
-        // Web: media_kit reproduce HLS con hls.js.
+        // En web, el stream HLS se carga a través del proxy (evita CORS/redirects).
         _initPlayer();
-        await _player!.open(Media(m3u8Url));
+        final proxied = '/api/proxy?url=${Uri.encodeComponent(m3u8Url)}';
+        await _player!.open(Media(proxied));
       } else {
         // Android/iOS: video_player + chewie (estable).
         _videoPlayerController = VideoPlayerController.networkUrl(Uri.parse(m3u8Url));
