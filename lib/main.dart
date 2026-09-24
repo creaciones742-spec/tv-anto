@@ -14,6 +14,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'onesignal_service.dart';
 import 'update_service.dart';
+import 'theme.dart';
 
 /// App ID de OneSignal (notificaciones push).
 const String kOneSignalAppId = '0d6bfe44-46d5-4498-8953-b1bfe508cb47';
@@ -33,17 +34,7 @@ class TvAntoApp extends StatelessWidget {
     return MaterialApp(
       title: 'TV Anto',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        brightness: Brightness.dark,
-        scaffoldBackgroundColor: const Color(0xFF0a0a0f),
-        primaryColor: const Color(0xFFEC4899),
-        colorScheme: const ColorScheme.dark(
-          primary: Color(0xFFEC4899),
-          secondary: Color(0xFFFBBF24),
-          surface: Color(0xFF16161f),
-        ),
-        useMaterial3: true,
-      ),
+      theme: AppTheme.darkTheme,
       home: const MainScreen(),
     );
   }
@@ -247,6 +238,10 @@ class _MainScreenState extends State<MainScreen> {
   int _recordSeconds = 0;
   Timer? _recordTimer;
   double _volume = 1.0;
+
+  // Controladores de foco para TV Box / Android TV
+  final FocusNode _searchFocusNode = FocusNode();
+  final FocusNode _playerFocusNode = FocusNode();
 
   List<String> get _channelGroups {
     final groups = channels.map((c) => c.group).toSet().toList();
@@ -726,64 +721,147 @@ class _MainScreenState extends State<MainScreen> {
 
   // ====== INTERFAZ MODERNA (TV Box / Web) ======
 
+  Widget _buildBrandLogo() {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        gradient: AppTheme.brandGradient,
+        borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+        boxShadow: [
+          AppTheme.shadowSmall,
+          BoxShadow(
+            color: AppTheme.primaryPink.withValues(alpha: 0.3),
+            blurRadius: 12,
+            spreadRadius: 1,
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+        child: Image.asset(
+          'assets/img/logo.jpg',
+          height: 48,
+          width: 48,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) =>
+              Icon(
+                Icons.live_tv_rounded,
+                size: 32,
+                color: AppTheme.textOnPrimary,
+              ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSearchField() {
+    return Container(
+      width: 240,
+      height: 48,
+      decoration: BoxDecoration(
+        gradient: AppTheme.cardGradient,
+        borderRadius: BorderRadius.circular(AppTheme.radiusRound),
+        border: Border.all(
+          color: AppTheme.borderSubtle,
+          width: 0.5,
+        ),
+        boxShadow: [
+          AppTheme.shadowSmall,
+        ],
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: AppTheme.spaceMD),
+      child: Row(
+        children: [
+          Icon(
+            Icons.search,
+            size: 20,
+            color: AppTheme.textMuted,
+          ),
+          const SizedBox(width: AppTheme.spaceXS),
+          Expanded(
+            child: TextField(
+              focusNode: _searchFocusNode,
+              onChanged: (v) => setState(() => _searchQuery = v),
+              style: AppTheme.bodyMedium.copyWith(
+                color: AppTheme.textPrimary,
+              ),
+              decoration: InputDecoration(
+                border: InputBorder.none,
+                hintText: 'Buscar canal...',
+                hintStyle: AppTheme.bodySmall.copyWith(
+                  color: AppTheme.textDisabled,
+                ),
+                isDense: true,
+              ),
+              cursorColor: AppTheme.primaryPink,
+            ),
+          ),
+          if (_searchQuery.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.clear),
+              iconSize: 20,
+              color: AppTheme.textMuted,
+              onPressed: () {
+                setState(() => _searchQuery = '');
+                _searchFocusNode.requestFocus();
+              },
+            ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildTopBar(bool isDesktop) {
     return Container(
-      height: 64,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      height: 72,
+      padding: const EdgeInsets.symmetric(horizontal: AppTheme.spaceLG),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(colors: [Color(0xFF16161f), Color(0xFF0a0a0f)]),
-        border: Border(bottom: BorderSide(color: Colors.white.withOpacity(0.05))),
+        gradient: AppTheme.surfaceGradient,
+        border: Border(
+          bottom: BorderSide(
+            color: AppTheme.borderSubtle,
+            width: 0.5,
+          ),
+        ),
+        boxShadow: [
+          AppTheme.shadowSmall,
+        ],
       ),
       child: Row(
         children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: Image.asset(
-              'assets/img/logo.jpg',
-              height: 40,
-              errorBuilder: (_, __, ___) => const Icon(Icons.live_tv, color: Color(0xFFEC4899), size: 40),
-            ),
-          ),
-          const SizedBox(width: 12),
-          const Column(
+          // Logo principal con animación y brillo
+          _buildBrandLogo(),
+          const SizedBox(width: AppTheme.spaceMD),
+          // Título y subtítulo
+          Column(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Anto TV', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
-              Text('Señal Digital UHD 4K', style: TextStyle(fontSize: 11, color: Colors.white54)),
+              ShaderMask(
+                shaderCallback: (bounds) => AppTheme.brandGradient.createShader(bounds),
+                child: Text(
+                  'TV ANTO',
+                  style: AppTheme.headlineSmall.copyWith(
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.5,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+              Text(
+                'Señal Digital UHD 4K  •  En Vivo',
+                style: AppTheme.labelSmall.copyWith(
+                  color: AppTheme.accentGreen,
+                  letterSpacing: 0.5,
+                ),
+              ),
             ],
           ),
           const Spacer(),
           if (isDesktop) ...[
-          // Búsqueda
-          Container(
-            width: 220,
-            height: 40,
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.06),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Row(
-              children: [
-                const Icon(Icons.search, size: 18, color: Colors.white54),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: TextField(
-                    onChanged: (v) => setState(() => _searchQuery = v),
-                    style: const TextStyle(color: Colors.white, fontSize: 13),
-                    decoration: const InputDecoration(
-                      border: InputBorder.none,
-                      hintText: 'Buscar canal...',
-                      hintStyle: TextStyle(color: Colors.white38, fontSize: 13),
-                      isDense: true,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-            const SizedBox(width: 14),
+            // Búsqueda moderna
+            _buildSearchField(),
+            const SizedBox(width: AppTheme.spaceMD),
           ],
           _buildModeSwitcher(),
         ],
@@ -1321,38 +1399,111 @@ class _MainScreenState extends State<MainScreen> {
         children: [
           Center(child: videoWidget),
 
-          // Watermark
+          // Control por mando TV Box / Android TV:
+          // Permite cambiar canal con Flecha Izquierda / Flecha Derecha y
+          // abrir/cerrar configuración con OK / Enter / Espacio.
+          Focus(
+            autofocus: true,
+            onKeyEvent: (node, event) {
+              if (event is KeyDownEvent) {
+                if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
+                  final currentIndex = channels.indexOf(_currentChannel!);
+                  if (currentIndex >= 0 && currentIndex < channels.length - 1) {
+                    _changeChannel(channels[currentIndex + 1]);
+                    return KeyEventResult.handled;
+                  }
+                } else if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
+                  final currentIndex = channels.indexOf(_currentChannel!);
+                  if (currentIndex > 0) {
+                    _changeChannel(channels[currentIndex - 1]);
+                    return KeyEventResult.handled;
+                  }
+                } else if (event.logicalKey == LogicalKeyboardKey.select ||
+                           event.logicalKey == LogicalKeyboardKey.space ||
+                           event.logicalKey == LogicalKeyboardKey.enter) {
+                  setState(() => _showSettings = !_showSettings);
+                  return KeyEventResult.handled;
+                }
+              }
+              return KeyEventResult.ignored;
+            },
+            child: const SizedBox.shrink(),
+          ),
+
+          // Watermark / Marca de agua siempre visible - Estilo moderno y elegante
           if (!_isLoading && _errorMessage.isEmpty && (kIsWeb ? _videoController != null : _chewieController != null))
             Positioned(
-              bottom: 80,
-              right: 20,
-              child: Opacity(
-                opacity: 0.4,
-                child: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.3),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Row(
-                    children: [
-                      Image.asset(
-                        'assets/img/logo.jpg',
-                        height: 30,
-                        errorBuilder: (context, error, stackTrace) =>
-                            const Icon(Icons.live_tv, size: 30),
-                      ),
-                      const SizedBox(width: 5),
-                      const Text(
-                        'TV Anto',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+              bottom: 100,
+              right: 24,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Colors.black.withValues(alpha: 0.7),
+                      Colors.black.withValues(alpha: 0.5),
                     ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
                   ),
+                  borderRadius: BorderRadius.circular(AppTheme.radiusRound),
+                  border: Border.all(
+                    color: AppTheme.primaryPink.withValues(alpha: 0.3),
+                    width: 1,
+                  ),
+                  boxShadow: [
+                    AppTheme.shadowMedium,
+                    BoxShadow(
+                      color: AppTheme.primaryPink.withValues(alpha: 0.15),
+                      blurRadius: 15,
+                      spreadRadius: 1,
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Logo con brillo sutil
+                    Container(
+                      padding: const EdgeInsets.all(2),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+                        gradient: AppTheme.brandGradient,
+                      ),
+                      child: Image.asset(
+                        'assets/img/logo.jpg',
+                        height: 28,
+                        width: 28,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) =>
+                            Icon(
+                              Icons.live_tv_rounded,
+                              size: 22,
+                              color: AppTheme.textOnPrimary,
+                            ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    // Texto de marca
+                    Text(
+                      'TV ANTO',
+                      style: AppTheme.labelLarge.copyWith(
+                        color: AppTheme.textPrimary,
+                        letterSpacing: 1.2,
+                        fontWeight: FontWeight.w800,
+                        shadows: [
+                          Shadow(
+                            color: AppTheme.primaryPink.withValues(alpha: 0.5),
+                            blurRadius: 4,
+                            offset: const Offset(0, 1),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    // Indicador EN VIVO pulsante
+                    _LiveIndicator(),
+                  ],
                 ),
               ),
             ),
@@ -1827,6 +1978,96 @@ class _MainScreenState extends State<MainScreen> {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Widget indicador "EN VIVO" con animación de pulso elegante
+class _LiveIndicator extends StatefulWidget {
+  const _LiveIndicator();
+
+  @override
+  State<_LiveIndicator> createState() => _LiveIndicatorState();
+}
+
+class _LiveIndicatorState extends State<_LiveIndicator>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 1200),
+      vsync: this,
+    )..repeat(reverse: true);
+
+    _animation = Tween<double>(begin: 0.5, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _animation,
+      builder: (context, child) {
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                AppTheme.accentGreen.withValues(alpha: _animation.value * 0.8),
+                AppTheme.accentGreen.withValues(alpha: _animation.value * 0.4),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(AppTheme.radiusRound),
+            boxShadow: [
+              BoxShadow(
+                color: AppTheme.accentGreen.withValues(alpha: _animation.value * 0.4),
+                blurRadius: 8,
+                spreadRadius: 1,
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 6,
+                height: 6,
+                decoration: BoxDecoration(
+                  color: AppTheme.textOnPrimary,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppTheme.accentGreen.withValues(alpha: _animation.value),
+                      blurRadius: 6,
+                      spreadRadius: 1,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 5),
+              Text(
+                'EN VIVO',
+                style: AppTheme.labelSmall.copyWith(
+                  color: AppTheme.textOnPrimary,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
